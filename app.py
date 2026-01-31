@@ -5,6 +5,8 @@ import streamlit as st
 import pandas as pd
 from dotenv import load_dotenv
 
+st.set_page_config(layout="wide", page_title="Expense Tracker")
+
 from ocr import (
     run_hybrid_ocr,
     run_gemini_only_ocr,

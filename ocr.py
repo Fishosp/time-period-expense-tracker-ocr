@@ -84,23 +84,25 @@ def extract_text_easyocr(image_path: str) -> str:
 
 def _get_structuring_prompt(text: str) -> str:
     """Generate the prompt for structuring receipt text."""
-    return f"""Extract items from this receipt. Return a JSON array.
+    return f"""Extract ALL purchased items from this receipt. Return a JSON array.
+
+IMPORTANT: Include EVERY item with a price. Do NOT skip any products.
 
 RULES:
-1. Fix common OCR errors in prices: 'o'/'O' → '0', 'l'/'I' → '1', 'S' → '5', 'B' → '8'
-2. Prices should be numbers like 25.00, 119.00, etc.
-3. Skip totals, subtotals, tax, payment methods, promotional text
-4. Each product line = one item
+1. Fix OCR errors in prices: 'o'/'O' → '0', 'l'/'I' → '1', 'S' → '5', 'B' → '8'
+2. Prices are numbers like 25.00, 119.00
+3. ONLY skip: totals, subtotals, tax lines, payment methods, change, promotional text
+4. Include ALL product lines - even if names look strange due to OCR errors
 
-JSON format:
+JSON format per item:
 {{"Timestamp": "YYYY-MM-DD HH:MM", "Item": "name", "Category": "Food|Beverage|Snack|Household|Other", "Price": 0.00, "Size": ""}}
 
-Date if not found: {datetime.now().strftime("%Y-%m-%d")} 12:00
+Default date: {datetime.now().strftime("%Y-%m-%d")} 12:00
 
 Receipt:
 {text}
 
-Return ONLY valid JSON array."""
+Return ONLY valid JSON array with ALL items."""
 
 
 def structure_with_gemini(text: str) -> pd.DataFrame:
