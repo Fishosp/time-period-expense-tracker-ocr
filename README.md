@@ -47,7 +47,19 @@ pip install -r requirements.txt
 
 #### Option A: Ollama (Recommended - free, local, offline)
 
-1. Install Ollama from https://ollama.com/download
+1. Install Ollama:
+
+   **Windows:** Download and run the installer from https://ollama.com/download
+
+   **Mac:**
+   ```bash
+   brew install ollama
+   ```
+
+   **Linux:**
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
 
 2. Pull a model:
    ```bash
@@ -63,6 +75,10 @@ pip install -r requirements.txt
    | gemma2:9b | 5.4GB | Slow | High | Alternative high accuracy |
 
 3. Start Ollama (runs on http://localhost:11434):
+
+   **Windows:** Runs automatically as a background service after installation.
+
+   **Linux/Mac:**
    ```bash
    ollama serve
    ```
