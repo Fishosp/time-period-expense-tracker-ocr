@@ -84,7 +84,7 @@ if uploaded_file:
 
     with col1:
         st.subheader("🖼️ Receipt")
-        st.image(uploaded_file, use_container_width=True)
+        st.image(uploaded_file, width="stretch")
 
         if st.button("🚀 Analyze Receipt"):
             with st.spinner("Extracting text..." if "Hybrid" in ocr_method else "AI is reading..."):
@@ -108,7 +108,7 @@ if uploaded_file:
 
             edited_results = st.data_editor(
                 st.session_state.current_scan,
-                use_container_width=True,
+                width="stretch",
                 height=table_height,
                 key="ocr_editor"
             )
@@ -160,7 +160,7 @@ if not st.session_state.master_db.empty:
     col_a, col_b = st.columns([1, 1])
     with col_a:
         st.subheader("Summary Table")
-        st.dataframe(category_summary, use_container_width=True, hide_index=True)
+        st.dataframe(category_summary, width="stretch", hide_index=True)
 
     with col_b:
         st.subheader("Spending Chart")
