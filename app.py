@@ -63,11 +63,10 @@ with st.sidebar:
         )
     elif "Groq" in llm_backend:
         groq_models = [
-            "qwen/qwen-3-32b",
+            "qwen/qwen3-32b",
             "llama-3.3-70b-versatile",
-            "deepseek-r1-distill-llama-70b",
             "llama-3.1-8b-instant",
-            "gemma2-9b-it",
+            "moonshotai/kimi-k2-instruct-0905",
         ]
         groq_model = st.selectbox(
             "Groq Model",
@@ -106,7 +105,7 @@ def run_ocr(image_path: str, method: str, llm: str, ollama_model: str = None, gr
                 image_path,
                 llm_backend=backend,
                 ollama_model=ollama_model or "qwen2.5:7b",
-                groq_model=groq_model or "qwen/qwen-3-32b"
+                groq_model=groq_model or "qwen/qwen3-32b"
             )
             st.session_state.last_raw_text = raw_text
         else:
