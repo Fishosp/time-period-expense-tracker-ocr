@@ -125,4 +125,90 @@ Hybrid mode shows the raw extracted text in an expandable section for debugging.
 
 ## Sample Images
 
-The `samples/` folder contains example 7-Eleven receipt images for testing.
+The `samples/` folder contains example receipt images for testing.
+
+## How It Works
+
+### Architecture
+
+The tool uses a **two-stage pipeline** to convert receipt images into structured data:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Receipt   │ ──▶ │   EasyOCR   │ ──▶ │     LLM     │ ──▶ Structured JSON
+│    Image    │     │  (Stage 1)  │     │  (Stage 2)  │
+└─────────────┘     └─────────────┘     └─────────────┘
+                     Text extraction     Data structuring
+```
+
+**Stage 1: Text Extraction (EasyOCR)**
+- Detects text regions in the image using deep learning
+- Recognizes characters using trained language models (Thai + English)
+- Preserves spatial layout by grouping text on the same line using bounding box coordinates
+- Outputs raw text with line structure preserved
+
+**Stage 2: Data Structuring (LLM)**
+- Takes the raw OCR text as input
+- Understands context to identify items, prices, dates
+- Categorizes products (Food, Beverage, Snack, etc.)
+- Fixes common OCR errors (e.g., 'o' misread as '0')
+- Outputs clean JSON array of structured items
+
+### Why Two Stages?
+
+**Why not just use an LLM with vision?**
+- Vision LLMs (like Gemini) can read images directly, but they're expensive (API costs) and require internet
+- Local vision models need powerful GPUs and are slower
+
+**Why not just use OCR?**
+- OCR only extracts text - it doesn't understand what's an item, price, or total
+- Receipt formats vary wildly between stores and countries
+- LLMs excel at understanding context and structure
+
+The hybrid approach gives us the best of both worlds: fast local text extraction + intelligent structuring.
+
+## Asian Language OCR Challenges
+
+### Why Thai (and other Asian languages) are harder to OCR
+
+**1. Character Complexity**
+- Thai has 44 consonants, 15 vowels, and 4 tone marks that combine in complex ways
+- Characters can stack vertically (vowels above/below consonants)
+- No spaces between words - the reader must understand context to segment
+
+```
+English:  "Hello World"  (clear word boundaries)
+Thai:     "สวัสดีโลก"      (no spaces, vowels wrap around consonants)
+```
+
+**2. Font Variations**
+- Receipt printers use various fonts, often low-quality thermal printing
+- Thai characters are more sensitive to degradation than Latin letters
+- Small differences in strokes change meaning entirely
+
+**3. Script Density**
+- More visual information packed into the same space
+- Similar-looking characters (ก ถ ภ look similar when blurry)
+- Numbers can look like letters (0/o, 1/l issues exist in Thai too)
+
+### Why Multilingual Models Matter
+
+**Standard English-only OCR models fail because:**
+- They don't have Thai character recognition trained
+- They may try to interpret Thai as corrupted Latin text
+- Word segmentation algorithms assume spaces exist
+
+**Multilingual models like qwen2.5 help because:**
+- Trained on diverse languages including Thai, Chinese, Japanese
+- Understand that prices are numbers even when OCR misreads "0" as "o"
+- Can infer meaning from context when characters are ambiguous
+- Better at handling mixed-language text (Thai product names + English brands)
+
+### Recommended Models for Asian Languages
+
+| Model | Asian Language Support | Notes |
+|-------|------------------------|-------|
+| **qwen2.5:7b** | Excellent | Alibaba model, strong CJK + Thai |
+| mistral | Good | Decent multilingual, good at JSON |
+| llama3.2 | Moderate | English-focused, struggles with Thai |
+| gemma2 | Good | Google model, decent Asian support |
