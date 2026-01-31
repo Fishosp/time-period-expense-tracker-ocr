@@ -1,10 +1,11 @@
 # time-period-expense-tracker-ocr
 
-A Streamlit app that uses Google's Gemini AI to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
+A Streamlit app that uses PaddleOCR and Google's Gemini AI to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
 
 ## Features
 
-- OCR-powered receipt scanning using Gemini AI
+- **Hybrid OCR** - PaddleOCR for Thai text extraction + Gemini for structuring
+- **Fallback mode** - Gemini-only OCR available via sidebar toggle
 - Editable data table to correct AI mistakes
 - Spending over time visualization
 - Category breakdown with charts
@@ -38,6 +39,8 @@ python -m venv venv
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Note:** PaddleOCR will download ~150MB of models on first run. This is normal and only happens once.
 
 ### 4. Configure your API key
 
@@ -75,6 +78,30 @@ The app will open in your browser at `http://localhost:8501`
 4. Click "Save to History" to track the transaction
 5. View spending analytics in the charts below
 
+## OCR Modes
+
+The app supports two OCR methods (selectable in the sidebar):
+
+| Mode | How it works | Best for |
+|------|--------------|----------|
+| **Hybrid** (default) | PaddleOCR extracts text → Gemini structures it | Thai receipts, better accuracy |
+| **Gemini Only** | Image sent directly to Gemini | Quick testing, fallback option |
+
+Hybrid mode also shows the raw extracted text in an expandable section for debugging.
+
 ## Sample Images
 
 The `samples/` folder contains example 7-Eleven receipt images for testing.
+
+## Troubleshooting
+
+**PaddleOCR installation issues:**
+- On some systems, you may need to install PaddlePaddle separately first:
+  ```bash
+  pip install paddlepaddle
+  pip install paddleocr
+  ```
+- For GPU support, see [PaddlePaddle installation guide](https://www.paddlepaddle.org.cn/install/quick)
+
+**Slow first run:**
+- PaddleOCR downloads models (~150MB) on first use. Subsequent runs are faster.

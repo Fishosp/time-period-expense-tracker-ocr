@@ -1,22 +1,32 @@
 # 7-Eleven Receipt OCR Expense Tracker
-# Uses Gemini AI to extract structured data from receipt images
+# Uses PaddleOCR + Gemini AI to extract structured data from receipt images
 
 import streamlit as st
 import pandas as pd
-import os
-import google.generativeai as genai
-import PIL.Image
-import json
-from datetime import datetime
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+from ocr import (
+    run_hybrid_ocr,
+    run_gemini_only_ocr,
+    normalize_dataframe,
+)
+
 load_dotenv()
 
-# STEP 0: ADMIN CONTROLS
-# =========================================================
+# --- SIDEBAR: ADMIN CONTROLS ---
 with st.sidebar:
-    st.header("⚙️ Admin Tools")
+    st.header("⚙️ Settings")
+
+    ocr_method = st.radio(
+        "OCR Method",
+        ["Hybrid (PaddleOCR + Gemini)", "Gemini Only"],
+        index=0,
+        help="Hybrid uses PaddleOCR for text extraction, then Gemini for structuring. May be more accurate for Thai text."
+    )
+
+    st.divider()
+
+    st.subheader("Admin Tools")
     st.info("Use this if the app feels 'stuck' or shows old data.")
 
     if st.button("🗑️ Hard Reset App"):
@@ -24,47 +34,28 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-    st.divider()
-
-# --- 1. INITIALIZATION ---
+# --- INITIALIZATION ---
 if 'master_db' not in st.session_state:
     st.session_state.master_db = pd.DataFrame(columns=["Timestamp", "Item", "Category", "Price", "Size"])
 
-# --- 2. TIME-AWARE AI OCR ---
-def run_smart_ocr(image_path):
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        st.error("⚠️ GEMINI_API_KEY not found. Please set it in your .env file.")
-        return None
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
-
+# --- OCR FUNCTION ---
+def run_ocr(image_path: str, method: str):
+    """Run OCR with selected method and return normalized DataFrame."""
     try:
-        img = PIL.Image.open(image_path)
-        prompt = """Analyze this 7-Eleven receipt. Return a JSON LIST of objects with these keys:
-                  "Timestamp", "Item", "Category", "Price", "Size".
-                  Format Timestamp as YYYY-MM-DD HH:MM.
-                  If you can't find a date, use '2026-01-03 12:00'."""
+        if method == "Hybrid (PaddleOCR + Gemini)":
+            df, raw_text = run_hybrid_ocr(image_path)
+            st.session_state.last_raw_text = raw_text
+        else:
+            df = run_gemini_only_ocr(image_path)
+            st.session_state.last_raw_text = None
 
-        response = model.generate_content([prompt, img])
-        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-        data = json.loads(clean_json)
-        df = pd.DataFrame(data)
-
-        # Handle missing Timestamp column
-        if 'Timestamp' not in df.columns:
-            df['Timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-        df['Timestamp'] = df['Timestamp'].fillna(datetime.now().strftime("%Y-%m-%d %H:%M"))
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
-        return df
+        return normalize_dataframe(df)
 
     except Exception as e:
-        st.error(f"⚠️ Parsing Error: {e}")
+        st.error(f"⚠️ OCR Error: {e}")
         return None
 
-# --- 3. UI & ANALYTICS ---
+# --- MAIN UI ---
 st.title("📅 Time-Period Expense Tracker")
 
 uploaded_file = st.file_uploader("Upload Receipt", type=["jpg", "png"])
@@ -79,14 +70,19 @@ if uploaded_file:
     with col2:
         st.subheader("🔍 OCR Verification")
         if st.button("🚀 Analyze Receipt"):
-            with st.spinner("AI is reading..."):
+            with st.spinner("Extracting text..." if "Hybrid" in ocr_method else "AI is reading..."):
                 with open("temp.jpg", "wb") as f:
                     f.write(uploaded_file.getbuffer())
 
-                st.session_state.current_scan = run_smart_ocr("temp.jpg")
+                st.session_state.current_scan = run_ocr("temp.jpg", ocr_method)
 
         if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
             st.info("💡 Edit the table below to correct any AI errors.")
+
+            # Show raw extracted text for hybrid mode (debugging)
+            if st.session_state.get('last_raw_text'):
+                with st.expander("📝 Raw OCR Text (PaddleOCR)"):
+                    st.text(st.session_state.last_raw_text)
 
             edited_results = st.data_editor(
                 st.session_state.current_scan,
@@ -98,9 +94,11 @@ if uploaded_file:
                 st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
                 st.success("Data saved to Master File!")
                 del st.session_state.current_scan
+                if 'last_raw_text' in st.session_state:
+                    del st.session_state.last_raw_text
                 st.rerun()
 
-# --- 4. TIME-PERIOD ANALYSIS ---
+# --- TIME-PERIOD ANALYSIS ---
 if not st.session_state.master_db.empty:
     st.divider()
     st.subheader("🕒 Spending Over Time")
@@ -114,7 +112,7 @@ if not st.session_state.master_db.empty:
     with st.expander("📄 View Full Transaction History"):
         st.dataframe(st.session_state.master_db.sort_values("Timestamp", ascending=False))
 
-# --- 5. CATEGORY SUMMARY SECTION ---
+# --- CATEGORY SUMMARY ---
 if not st.session_state.master_db.empty:
     st.divider()
     st.header("📊 Spending Summary by Category")
