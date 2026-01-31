@@ -85,10 +85,15 @@ if uploaded_file:
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("🖼️ Receipt")
+        header_col, button_col = st.columns([2, 1])
+        with header_col:
+            st.subheader("🖼️ Receipt")
+        with button_col:
+            analyze_clicked = st.button("🚀 Analyze")
+
         st.image(uploaded_file, width="stretch")
 
-        if st.button("🚀 Analyze Receipt"):
+        if analyze_clicked:
             with st.spinner("Extracting text..." if "Hybrid" in ocr_method else "AI is reading..."):
                 with open("temp.jpg", "wb") as f:
                     f.write(uploaded_file.getbuffer())
