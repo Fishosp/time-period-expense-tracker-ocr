@@ -42,14 +42,16 @@ with st.sidebar:
 
     llm_backend = st.radio(
         "LLM Backend",
-        ["Ollama (Local)", "Gemini (API)"],
+        ["Groq (Free API)", "Ollama (Local)", "Gemini (API)"],
         index=0,
-        help="Ollama runs locally (free, offline). Gemini requires API key."
+        help="Groq: free cloud API. Ollama: local, offline. Gemini: Google API."
     )
+
+    ollama_model = None
+    groq_model = None
 
     if "Ollama" in llm_backend:
         available_models = get_ollama_models()
-        # Default to qwen2.5:7b if available
         default_index = 0
         if "qwen2.5:7b" in available_models:
             default_index = available_models.index("qwen2.5:7b")
@@ -59,8 +61,19 @@ with st.sidebar:
             index=default_index,
             help="Select from locally available models"
         )
-    else:
-        ollama_model = None
+    elif "Groq" in llm_backend:
+        groq_models = [
+            "llama-3.1-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it",
+        ]
+        groq_model = st.selectbox(
+            "Groq Model",
+            options=groq_models,
+            index=0,
+            help="llama-3.1-70b recommended for multilingual/Thai"
+        )
 
     st.divider()
 
@@ -77,13 +90,23 @@ if 'master_db' not in st.session_state:
     st.session_state.master_db = pd.DataFrame(columns=["Timestamp", "Item", "Category", "Price", "Size"])
 
 # --- OCR FUNCTION ---
-def run_ocr(image_path: str, method: str, llm: str, model: str = None):
+def run_ocr(image_path: str, method: str, llm: str, ollama_model: str = None, groq_model: str = None):
     """Run OCR with selected method and return normalized DataFrame."""
     try:
-        backend = "ollama" if "Ollama" in llm else "gemini"
+        if "Ollama" in llm:
+            backend = "ollama"
+        elif "Groq" in llm:
+            backend = "groq"
+        else:
+            backend = "gemini"
 
         if "Hybrid" in method:
-            df, raw_text = run_hybrid_ocr(image_path, llm_backend=backend, ollama_model=model or "qwen2.5:7b")
+            df, raw_text = run_hybrid_ocr(
+                image_path,
+                llm_backend=backend,
+                ollama_model=ollama_model or "qwen2.5:7b",
+                groq_model=groq_model or "llama-3.1-70b-versatile"
+            )
             st.session_state.last_raw_text = raw_text
         else:
             df = run_gemini_only_ocr(image_path)
@@ -120,7 +143,7 @@ if uploaded_file:
                 with st.spinner("Extracting..." if "Hybrid" in ocr_method else "Reading..."):
                     with open("temp.jpg", "wb") as f:
                         f.write(uploaded_file.getbuffer())
-                    df = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+                    df = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model, groq_model)
                     if df is not None:
                         init_review_state(df)
             st.rerun()

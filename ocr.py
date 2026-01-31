@@ -1,5 +1,5 @@
 # OCR module for receipt text extraction and structuring
-# Supports EasyOCR + Gemini/Ollama for text structuring
+# Supports EasyOCR + Gemini/Ollama/Groq for text structuring
 
 import os
 import json
@@ -10,6 +10,7 @@ import PIL.Image
 import requests
 from datetime import datetime
 import easyocr
+from groq import Groq
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -196,6 +197,42 @@ def structure_with_ollama(text: str, model: str = "qwen2.5:7b") -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
+def structure_with_groq(text: str, model: str = "llama-3.1-70b-versatile") -> pd.DataFrame:
+    """Use Groq to structure extracted text into a DataFrame."""
+    api_key = os.environ.get('GROQ_API_KEY')
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not found in environment")
+
+    client = Groq(api_key=api_key)
+
+    prompt = _get_structuring_prompt(text)
+    logger.info(f"Calling Groq model: {model}")
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
+        max_tokens=4096,
+    )
+
+    raw_response = response.choices[0].message.content
+    logger.info(f"Groq raw response:\n{raw_response}")
+
+    if not raw_response.strip():
+        raise ValueError("Groq returned empty response.")
+
+    clean_json = _extract_json_from_response(raw_response)
+    logger.info(f"Extracted JSON:\n{clean_json}")
+
+    try:
+        data = json.loads(clean_json)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parse error: {e}")
+        raise ValueError(f"Could not parse Groq response as JSON. Raw response:\n{raw_response[:500]}")
+
+    return pd.DataFrame(data)
+
+
 def run_gemini_only_ocr(image_path: str) -> pd.DataFrame:
     """Original approach: send image directly to Gemini."""
     api_key = os.environ.get('GEMINI_API_KEY')
@@ -236,15 +273,16 @@ Return ONLY valid JSON array."""
     return pd.DataFrame(data)
 
 
-def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "qwen2.5:7b") -> tuple[pd.DataFrame, str]:
+def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "qwen2.5:7b", groq_model: str = "llama-3.1-70b-versatile") -> tuple[pd.DataFrame, str]:
     """
     Hybrid approach: EasyOCR extracts text, LLM structures it.
     Returns (DataFrame, extracted_text) for debugging.
 
     Args:
         image_path: Path to the receipt image
-        llm_backend: "gemini" or "ollama"
-        ollama_model: Model name for Ollama (ignored if using Gemini)
+        llm_backend: "gemini", "ollama", or "groq"
+        ollama_model: Model name for Ollama
+        groq_model: Model name for Groq
     """
     raw_text = extract_text_easyocr(image_path)
     if not raw_text:
@@ -252,6 +290,8 @@ def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: s
 
     if llm_backend == "ollama":
         df = structure_with_ollama(raw_text, ollama_model)
+    elif llm_backend == "groq":
+        df = structure_with_groq(raw_text, groq_model)
     else:
         df = structure_with_gemini(raw_text)
 
