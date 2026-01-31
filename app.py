@@ -25,6 +25,7 @@ from ocr import (
     run_gemini_only_ocr,
     normalize_dataframe,
 )
+from components.review_queue import init_review_state, render_review_queue
 
 load_dotenv()
 
@@ -119,34 +120,25 @@ if uploaded_file:
                 with st.spinner("Extracting..." if "Hybrid" in ocr_method else "Reading..."):
                     with open("temp.jpg", "wb") as f:
                         f.write(uploaded_file.getbuffer())
-                    st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+                    df = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+                    if df is not None:
+                        init_review_state(df)
             st.rerun()
 
     with col2:
-        if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
-            st.subheader("📋 Extracted Data")
+        if 'review_items' in st.session_state:
+            accepted_df = render_review_queue()
 
-            # Show raw extracted text for hybrid mode (debugging)
-            if st.session_state.get('last_raw_text'):
-                with st.expander("📝 Raw OCR Text"):
-                    st.text(st.session_state.last_raw_text)
-
-            # Calculate height based on number of rows
-            num_rows = len(st.session_state.current_scan)
-            table_height = max(300, min(500, (num_rows + 1) * 35 + 50))
-
-            edited_results = st.data_editor(
-                st.session_state.current_scan,
-                width="stretch",
-                height=table_height,
-                key="ocr_editor"
-            )
-
-            if st.button("💾 Save to History"):
-                st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
-                st.success("Data saved to Master File!")
-                del st.session_state.current_scan
-                if 'last_raw_text' in st.session_state:
+            if accepted_df is not None:
+                # User clicked "Accept Selected"
+                st.session_state.master_db = pd.concat([st.session_state.master_db, accepted_df]).drop_duplicates()
+                st.success(f"Saved {len(accepted_df)} items to history!")
+                # Clear review state
+                if "review_items" in st.session_state:
+                    del st.session_state.review_items
+                if "editing_item" in st.session_state:
+                    del st.session_state.editing_item
+                if "last_raw_text" in st.session_state:
                     del st.session_state.last_raw_text
                 st.rerun()
         else:
