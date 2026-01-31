@@ -1,11 +1,12 @@
 # time-period-expense-tracker-ocr
 
-A Streamlit app that uses EasyOCR and Google's Gemini AI to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
+A Streamlit app that uses EasyOCR and LLMs to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
 
 ## Features
 
-- **Hybrid OCR** - EasyOCR for Thai/English text extraction + Gemini for structuring
-- **Fallback mode** - Gemini-only OCR available via sidebar toggle
+- **Hybrid OCR** - EasyOCR for Thai/English text extraction + LLM for structuring
+- **Ollama support** - Run locally with no API keys (free, offline, private)
+- **Gemini support** - Use Google's API as an alternative
 - Editable data table to correct AI mistakes
 - Spending over time visualization
 - Category breakdown with charts
@@ -42,7 +43,21 @@ pip install -r requirements.txt
 
 > **Note:** EasyOCR will download language models (~100MB for Thai + English) on first run.
 
-### 4. Configure your API key
+### 4. Set up LLM backend
+
+#### Option A: Ollama (Recommended - free, local, offline)
+
+1. Install Ollama from https://ollama.com/download
+2. Pull a model:
+   ```bash
+   ollama pull llama3.2
+   ```
+3. Start Ollama (runs on http://localhost:11434):
+   ```bash
+   ollama serve
+   ```
+
+#### Option B: Gemini API
 
 Get a Gemini API key from https://aistudio.google.com/app/apikey
 
@@ -80,14 +95,21 @@ The app will open in your browser at `http://localhost:8501`
 
 ## OCR Modes
 
-The app supports two OCR methods (selectable in the sidebar):
+The app supports different OCR and LLM combinations (selectable in the sidebar):
 
-| Mode | How it works | Best for |
-|------|--------------|----------|
-| **Hybrid** (default) | EasyOCR extracts text → Gemini structures it | Thai receipts, better accuracy |
-| **Gemini Only** | Image sent directly to Gemini | Quick testing, fallback option |
+**OCR Method:**
+| Mode | How it works |
+|------|--------------|
+| **Hybrid** (default) | EasyOCR extracts text → LLM structures it |
+| **Gemini Only** | Image sent directly to Gemini |
 
-Hybrid mode also shows the raw extracted text in an expandable section for debugging.
+**LLM Backend:**
+| Backend | Pros | Cons |
+|---------|------|------|
+| **Ollama** (default) | Free, offline, private | Requires local setup |
+| **Gemini** | No setup, fast | API limits, requires key |
+
+Hybrid mode shows the raw extracted text in an expandable section for debugging.
 
 ## Sample Images
 

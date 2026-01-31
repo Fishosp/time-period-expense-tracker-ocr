@@ -19,10 +19,26 @@ with st.sidebar:
 
     ocr_method = st.radio(
         "OCR Method",
-        ["Hybrid (EasyOCR + Gemini)", "Gemini Only"],
+        ["Hybrid (EasyOCR + LLM)", "Gemini Only"],
         index=0,
-        help="Hybrid uses EasyOCR for text extraction, then Gemini for structuring. May be more accurate for Thai text."
+        help="Hybrid uses EasyOCR for text extraction, then an LLM for structuring."
     )
+
+    llm_backend = st.radio(
+        "LLM Backend",
+        ["Ollama (Local)", "Gemini (API)"],
+        index=0,
+        help="Ollama runs locally (free, offline). Gemini requires API key."
+    )
+
+    if "Ollama" in llm_backend:
+        ollama_model = st.text_input(
+            "Ollama Model",
+            value="llama3.2",
+            help="Model name (e.g., llama3.2, mistral, gemma2)"
+        )
+    else:
+        ollama_model = None
 
     st.divider()
 
@@ -39,11 +55,13 @@ if 'master_db' not in st.session_state:
     st.session_state.master_db = pd.DataFrame(columns=["Timestamp", "Item", "Category", "Price", "Size"])
 
 # --- OCR FUNCTION ---
-def run_ocr(image_path: str, method: str):
+def run_ocr(image_path: str, method: str, llm: str, model: str = None):
     """Run OCR with selected method and return normalized DataFrame."""
     try:
-        if method == "Hybrid (EasyOCR + Gemini)":
-            df, raw_text = run_hybrid_ocr(image_path)
+        backend = "ollama" if "Ollama" in llm else "gemini"
+
+        if "Hybrid" in method:
+            df, raw_text = run_hybrid_ocr(image_path, llm_backend=backend, ollama_model=model or "llama3.2")
             st.session_state.last_raw_text = raw_text
         else:
             df = run_gemini_only_ocr(image_path)
@@ -74,7 +92,7 @@ if uploaded_file:
                 with open("temp.jpg", "wb") as f:
                     f.write(uploaded_file.getbuffer())
 
-                st.session_state.current_scan = run_ocr("temp.jpg", ocr_method)
+                st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
 
         if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
             st.info("💡 Edit the table below to correct any AI errors.")

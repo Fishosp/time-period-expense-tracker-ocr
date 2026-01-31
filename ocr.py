@@ -1,11 +1,12 @@
 # OCR module for receipt text extraction and structuring
-# Supports EasyOCR (hybrid) and Gemini-only modes
+# Supports EasyOCR + Gemini/Ollama for text structuring
 
 import os
 import json
 import pandas as pd
 import google.generativeai as genai
 import PIL.Image
+import requests
 from datetime import datetime
 import easyocr
 
@@ -39,16 +40,9 @@ def extract_text_easyocr(image_path: str) -> str:
     return '\n'.join(lines)
 
 
-def structure_with_gemini(text: str) -> pd.DataFrame:
-    """Use Gemini to structure extracted text into a DataFrame."""
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY not found in environment")
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
-
-    prompt = f"""Analyze this 7-Eleven receipt text and return a JSON LIST of objects with these keys:
+def _get_structuring_prompt(text: str) -> str:
+    """Generate the prompt for structuring receipt text."""
+    return f"""Analyze this 7-Eleven receipt text and return a JSON LIST of objects with these keys:
 "Timestamp", "Item", "Category", "Price", "Size".
 
 Format Timestamp as YYYY-MM-DD HH:MM.
@@ -61,8 +55,46 @@ Receipt text:
 
 Return ONLY valid JSON, no markdown formatting."""
 
+
+def structure_with_gemini(text: str) -> pd.DataFrame:
+    """Use Gemini to structure extracted text into a DataFrame."""
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found in environment")
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.0-flash')
+
+    prompt = _get_structuring_prompt(text)
     response = model.generate_content(prompt)
     clean_json = response.text.replace('```json', '').replace('```', '').strip()
+    data = json.loads(clean_json)
+
+    return pd.DataFrame(data)
+
+
+def structure_with_ollama(text: str, model: str = "llama3.2") -> pd.DataFrame:
+    """Use Ollama to structure extracted text into a DataFrame."""
+    ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+
+    prompt = _get_structuring_prompt(text)
+
+    response = requests.post(
+        f'{ollama_url}/api/generate',
+        json={
+            'model': model,
+            'prompt': prompt,
+            'stream': False
+        },
+        timeout=120
+    )
+
+    if response.status_code != 200:
+        raise ValueError(f"Ollama error: {response.text}")
+
+    result = response.json()
+    raw_response = result.get('response', '')
+    clean_json = raw_response.replace('```json', '').replace('```', '').strip()
     data = json.loads(clean_json)
 
     return pd.DataFrame(data)
@@ -95,16 +127,25 @@ Return ONLY valid JSON, no markdown formatting."""
     return pd.DataFrame(data)
 
 
-def run_hybrid_ocr(image_path: str) -> tuple[pd.DataFrame, str]:
+def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "llama3.2") -> tuple[pd.DataFrame, str]:
     """
-    Hybrid approach: EasyOCR extracts text, Gemini structures it.
+    Hybrid approach: EasyOCR extracts text, LLM structures it.
     Returns (DataFrame, extracted_text) for debugging.
+
+    Args:
+        image_path: Path to the receipt image
+        llm_backend: "gemini" or "ollama"
+        ollama_model: Model name for Ollama (ignored if using Gemini)
     """
     raw_text = extract_text_easyocr(image_path)
     if not raw_text:
         raise ValueError("EasyOCR could not extract any text from the image")
 
-    df = structure_with_gemini(raw_text)
+    if llm_backend == "ollama":
+        df = structure_with_ollama(raw_text, ollama_model)
+    else:
+        df = structure_with_gemini(raw_text)
+
     return df, raw_text
 
 
