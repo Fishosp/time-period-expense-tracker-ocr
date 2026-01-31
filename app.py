@@ -1,22 +1,69 @@
-# 7-Eleven Receipt OCR Expense Tracker
-# Uses Gemini AI to extract structured data from receipt images
+# Receipt OCR Expense Tracker
+# Uses EasyOCR + LLM to extract structured data from receipt images
 
 import streamlit as st
 import pandas as pd
-import os
-import google.generativeai as genai
-import PIL.Image
-import json
-from datetime import datetime
+import requests
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+
+def get_ollama_models():
+    """Fetch available models from Ollama."""
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        if response.status_code == 200:
+            models = response.json().get("models", [])
+            return [m["name"] for m in models]
+    except Exception:
+        pass
+    return ["qwen2.5:7b"]  # fallback
+
+st.set_page_config(layout="wide", page_title="Expense Tracker")
+
+from ocr import (
+    run_hybrid_ocr,
+    run_gemini_only_ocr,
+    normalize_dataframe,
+)
+
 load_dotenv()
 
-# STEP 0: ADMIN CONTROLS
-# =========================================================
+# --- SIDEBAR: SETTINGS ---
 with st.sidebar:
-    st.header("⚙️ Admin Tools")
+    st.header("⚙️ Settings")
+
+    ocr_method = st.radio(
+        "OCR Method",
+        ["Hybrid (EasyOCR + LLM)", "Gemini Only"],
+        index=0,
+        help="Hybrid uses EasyOCR for text extraction, then an LLM for structuring."
+    )
+
+    llm_backend = st.radio(
+        "LLM Backend",
+        ["Ollama (Local)", "Gemini (API)"],
+        index=0,
+        help="Ollama runs locally (free, offline). Gemini requires API key."
+    )
+
+    if "Ollama" in llm_backend:
+        available_models = get_ollama_models()
+        # Default to qwen2.5:7b if available
+        default_index = 0
+        if "qwen2.5:7b" in available_models:
+            default_index = available_models.index("qwen2.5:7b")
+        ollama_model = st.selectbox(
+            "Ollama Model",
+            options=available_models,
+            index=default_index,
+            help="Select from locally available models"
+        )
+    else:
+        ollama_model = None
+
+    st.divider()
+
+    st.subheader("Admin Tools")
     st.info("Use this if the app feels 'stuck' or shows old data.")
 
     if st.button("🗑️ Hard Reset App"):
@@ -24,73 +71,74 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-    st.divider()
-
-# --- 1. INITIALIZATION ---
+# --- INITIALIZATION ---
 if 'master_db' not in st.session_state:
     st.session_state.master_db = pd.DataFrame(columns=["Timestamp", "Item", "Category", "Price", "Size"])
 
-# --- 2. TIME-AWARE AI OCR ---
-def run_smart_ocr(image_path):
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        st.error("⚠️ GEMINI_API_KEY not found. Please set it in your .env file.")
-        return None
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
-
+# --- OCR FUNCTION ---
+def run_ocr(image_path: str, method: str, llm: str, model: str = None):
+    """Run OCR with selected method and return normalized DataFrame."""
     try:
-        img = PIL.Image.open(image_path)
-        prompt = """Analyze this 7-Eleven receipt. Return a JSON LIST of objects with these keys:
-                  "Timestamp", "Item", "Category", "Price", "Size".
-                  Format Timestamp as YYYY-MM-DD HH:MM.
-                  If you can't find a date, use '2026-01-03 12:00'."""
+        backend = "ollama" if "Ollama" in llm else "gemini"
 
-        response = model.generate_content([prompt, img])
-        clean_json = response.text.replace('```json', '').replace('```', '').strip()
-        data = json.loads(clean_json)
-        df = pd.DataFrame(data)
+        if "Hybrid" in method:
+            df, raw_text = run_hybrid_ocr(image_path, llm_backend=backend, ollama_model=model or "qwen2.5:7b")
+            st.session_state.last_raw_text = raw_text
+        else:
+            df = run_gemini_only_ocr(image_path)
+            st.session_state.last_raw_text = None
 
-        # Handle missing Timestamp column
-        if 'Timestamp' not in df.columns:
-            df['Timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-        df['Timestamp'] = df['Timestamp'].fillna(datetime.now().strftime("%Y-%m-%d %H:%M"))
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
-        return df
+        return normalize_dataframe(df)
 
     except Exception as e:
         st.error(f"⚠️ Parsing Error: {e}")
         return None
 
-# --- 3. UI & ANALYTICS ---
+# --- MAIN UI ---
 st.title("📅 Time-Period Expense Tracker")
 
 uploaded_file = st.file_uploader("Upload Receipt", type=["jpg", "png"])
 
 if uploaded_file:
-    col1, col2 = st.columns([1, 1])
+    # Image on left (smaller), table on right (larger)
+    col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("🖼️ Uploaded Receipt")
-        st.image(uploaded_file, use_container_width=True)
+        header_col, button_col = st.columns([2, 1])
+        with header_col:
+            st.subheader("🖼️ Receipt")
+        with button_col:
+            button_placeholder = st.empty()
+
+        st.image(uploaded_file, width="stretch")
+
+        analyze_clicked = button_placeholder.button("🚀 Analyze")
+        if analyze_clicked:
+            button_placeholder.empty()
+            with button_placeholder:
+                with st.spinner("Extracting..." if "Hybrid" in ocr_method else "Reading..."):
+                    with open("temp.jpg", "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+            st.rerun()
 
     with col2:
-        st.subheader("🔍 OCR Verification")
-        if st.button("🚀 Analyze Receipt"):
-            with st.spinner("AI is reading..."):
-                with open("temp.jpg", "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-
-                st.session_state.current_scan = run_smart_ocr("temp.jpg")
-
         if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
-            st.info("💡 Edit the table below to correct any AI errors.")
+            st.subheader("📋 Extracted Data")
+
+            # Show raw extracted text for hybrid mode (debugging)
+            if st.session_state.get('last_raw_text'):
+                with st.expander("📝 Raw OCR Text"):
+                    st.text(st.session_state.last_raw_text)
+
+            # Calculate height based on number of rows
+            num_rows = len(st.session_state.current_scan)
+            table_height = max(300, min(500, (num_rows + 1) * 35 + 50))
 
             edited_results = st.data_editor(
                 st.session_state.current_scan,
-                use_container_width=True,
+                width="stretch",
+                height=table_height,
                 key="ocr_editor"
             )
 
@@ -98,9 +146,13 @@ if uploaded_file:
                 st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
                 st.success("Data saved to Master File!")
                 del st.session_state.current_scan
+                if 'last_raw_text' in st.session_state:
+                    del st.session_state.last_raw_text
                 st.rerun()
+        else:
+            st.info("👆 Upload a receipt and click Analyze")
 
-# --- 4. TIME-PERIOD ANALYSIS ---
+# --- TIME-PERIOD ANALYSIS ---
 if not st.session_state.master_db.empty:
     st.divider()
     st.subheader("🕒 Spending Over Time")
@@ -114,7 +166,7 @@ if not st.session_state.master_db.empty:
     with st.expander("📄 View Full Transaction History"):
         st.dataframe(st.session_state.master_db.sort_values("Timestamp", ascending=False))
 
-# --- 5. CATEGORY SUMMARY SECTION ---
+# --- CATEGORY SUMMARY ---
 if not st.session_state.master_db.empty:
     st.divider()
     st.header("📊 Spending Summary by Category")
@@ -122,9 +174,10 @@ if not st.session_state.master_db.empty:
     df_clean = st.session_state.master_db.copy()
     df_clean["Price"] = pd.to_numeric(df_clean["Price"], errors='coerce').fillna(0)
 
-    # Exclude total/summary rows from Thai receipts
+    # Exclude total/summary rows (Thai and English keywords)
     exclude_keywords = [
-        "ยอดสุทธิ", "ยอดรวม", "Total", "ชำระเงิน", "ทรูวอลเล็ท", "รวมทั้งสิ้น",
+        "ยอดสุทธิ", "ยอดรวม", "รวมทั้งสิ้น", "ชำระเงิน", "ทรูวอลเล็ท",
+        "Total", "Subtotal", "Tax", "VAT", "Payment", "Change", "Cash",
         "ตราปั๊มจังหวัด", "ภารกิจช้อปครบ", "รับเงินภารกิจช้อปหน้าร้าน", "สิทธิ์แลกซื้อสุดคุ้มAMB", "บริการ"
     ]
 
@@ -136,7 +189,7 @@ if not st.session_state.master_db.empty:
     col_a, col_b = st.columns([1, 1])
     with col_a:
         st.subheader("Summary Table")
-        st.dataframe(category_summary, use_container_width=True, hide_index=True)
+        st.dataframe(category_summary, width="stretch", hide_index=True)
 
     with col_b:
         st.subheader("Spending Chart")
