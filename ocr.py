@@ -5,7 +5,7 @@ import os
 import json
 import logging
 import pandas as pd
-import google.generativeai as genai
+from google import genai
 import PIL.Image
 import requests
 from datetime import datetime
@@ -111,12 +111,14 @@ def structure_with_gemini(text: str) -> pd.DataFrame:
     if not api_key:
         raise ValueError("GEMINI_API_KEY not found in environment")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    client = genai.Client(api_key=api_key)
 
     prompt = _get_structuring_prompt(text)
     logger.info(f"Calling Gemini")
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt
+    )
     raw_response = response.text
     logger.info(f"Gemini raw response:\n{raw_response}")
 
@@ -200,10 +202,15 @@ def run_gemini_only_ocr(image_path: str) -> pd.DataFrame:
     if not api_key:
         raise ValueError("GEMINI_API_KEY not found in environment")
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    client = genai.Client(api_key=api_key)
 
-    img = PIL.Image.open(image_path)
+    # Read image and encode as base64
+    with open(image_path, 'rb') as f:
+        image_data = f.read()
+
+    import base64
+    image_base64 = base64.b64encode(image_data).decode('utf-8')
+
     prompt = f"""Extract items from this receipt image. Return a JSON array.
 
 Skip totals, subtotals, tax, payment methods, promotional text.
@@ -216,8 +223,14 @@ Date if not found: {datetime.now().strftime("%Y-%m-%d")} 12:00
 
 Return ONLY valid JSON array."""
 
-    response = model.generate_content([prompt, img])
-    clean_json = response.text.replace('```json', '').replace('```', '').strip()
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=[
+            prompt,
+            genai.types.Part.from_bytes(data=image_data, mime_type='image/jpeg')
+        ]
+    )
+    clean_json = _extract_json_from_response(response.text)
     data = json.loads(clean_json)
 
     return pd.DataFrame(data)
