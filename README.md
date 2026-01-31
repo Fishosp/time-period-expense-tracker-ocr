@@ -1,6 +1,6 @@
 # time-period-expense-tracker-ocr
 
-A Streamlit app that uses EasyOCR and LLMs to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
+A Streamlit app that uses EasyOCR and LLMs to extract structured data from receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
 
 ## Features
 
@@ -48,14 +48,26 @@ pip install -r requirements.txt
 #### Option A: Ollama (Recommended - free, local, offline)
 
 1. Install Ollama from https://ollama.com/download
+
 2. Pull a model:
    ```bash
-   ollama pull llama3.2
+   ollama pull qwen2.5:7b
    ```
+
+   | Model | Size | Speed | Accuracy | Best for |
+   |-------|------|-------|----------|----------|
+   | **qwen2.5:7b** | 4.7GB | Medium | High | Recommended - best for receipts and multilingual |
+   | deepseek-r1:8b | 4.9GB | Medium | High | Strong reasoning and accuracy |
+   | mistral | 4.1GB | Medium | Good | Good instruction following |
+   | llama3.2 | 2.0GB | Fast | Moderate | Quick testing, lower memory |
+   | gemma2:9b | 5.4GB | Slow | High | Alternative high accuracy |
+
 3. Start Ollama (runs on http://localhost:11434):
    ```bash
    ollama serve
    ```
+
+4. Select your model from the dropdown in the app sidebar
 
 #### Option B: Gemini API
 
