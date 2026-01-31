@@ -91,7 +91,7 @@ def run_ocr(image_path: str, method: str, llm: str, model: str = None):
         return normalize_dataframe(df)
 
     except Exception as e:
-        st.error(f"⚠️ OCR Error: {e}")
+        st.error(f"⚠️ Parsing Error: {e}")
         return None
 
 # --- MAIN UI ---
