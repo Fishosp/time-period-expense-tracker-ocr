@@ -63,16 +63,17 @@ with st.sidebar:
         )
     elif "Groq" in llm_backend:
         groq_models = [
-            "llama-3.1-70b-versatile",
+            "qwen/qwen-3-32b",
+            "llama-3.3-70b-versatile",
+            "deepseek-r1-distill-llama-70b",
             "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
             "gemma2-9b-it",
         ]
         groq_model = st.selectbox(
             "Groq Model",
             options=groq_models,
             index=0,
-            help="llama-3.1-70b recommended for multilingual/Thai"
+            help="Qwen 3 32B recommended for multilingual/Thai"
         )
 
     st.divider()
@@ -105,7 +106,7 @@ def run_ocr(image_path: str, method: str, llm: str, ollama_model: str = None, gr
                 image_path,
                 llm_backend=backend,
                 ollama_model=ollama_model or "qwen2.5:7b",
-                groq_model=groq_model or "llama-3.1-70b-versatile"
+                groq_model=groq_model or "qwen/qwen-3-32b"
             )
             st.session_state.last_raw_text = raw_text
         else:

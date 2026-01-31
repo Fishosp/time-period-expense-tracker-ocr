@@ -197,7 +197,7 @@ def structure_with_ollama(text: str, model: str = "qwen2.5:7b") -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def structure_with_groq(text: str, model: str = "llama-3.1-70b-versatile") -> pd.DataFrame:
+def structure_with_groq(text: str, model: str = "qwen/qwen-3-32b") -> pd.DataFrame:
     """Use Groq to structure extracted text into a DataFrame."""
     api_key = os.environ.get('GROQ_API_KEY')
     if not api_key:
@@ -273,7 +273,7 @@ Return ONLY valid JSON array."""
     return pd.DataFrame(data)
 
 
-def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "qwen2.5:7b", groq_model: str = "llama-3.1-70b-versatile") -> tuple[pd.DataFrame, str]:
+def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "qwen2.5:7b", groq_model: str = "qwen/qwen-3-32b") -> tuple[pd.DataFrame, str]:
     """
     Hybrid approach: EasyOCR extracts text, LLM structures it.
     Returns (DataFrame, extracted_text) for debugging.
