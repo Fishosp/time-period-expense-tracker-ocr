@@ -86,20 +86,21 @@ def _get_structuring_prompt(text: str) -> str:
     """Generate the prompt for structuring receipt text."""
     return f"""Extract items from this 7-Eleven receipt. Return a JSON array.
 
-CRITICAL RULES:
-- Extract EXACT prices as shown - DO NOT calculate, round, or modify numbers
-- Each line with a price is one item
-- Skip lines that are totals, payment methods, or promotional text
+RULES:
+1. Fix common OCR errors in prices: 'o'/'O' → '0', 'l'/'I' → '1', 'S' → '5', 'B' → '8'
+2. Prices should be numbers like 25.00, 119.00, etc.
+3. Skip totals, payment methods, promotional text
+4. Each product line = one item
 
-JSON format for each item:
-{{"Timestamp": "YYYY-MM-DD HH:MM", "Item": "product name", "Category": "Food|Beverage|Snack|Household|Other", "Price": exact_number, "Size": "size if shown"}}
+JSON format:
+{{"Timestamp": "YYYY-MM-DD HH:MM", "Item": "name", "Category": "Food|Beverage|Snack|Household|Other", "Price": 0.00, "Size": ""}}
 
-If no date found, use: {datetime.now().strftime("%Y-%m-%d")} 12:00
+Date if not found: {datetime.now().strftime("%Y-%m-%d")} 12:00
 
-Receipt text:
+Receipt:
 {text}
 
-Return ONLY the JSON array, no explanation."""
+Return ONLY valid JSON array."""
 
 
 def structure_with_gemini(text: str) -> pd.DataFrame:

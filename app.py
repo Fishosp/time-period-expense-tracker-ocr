@@ -79,14 +79,13 @@ st.title("📅 Time-Period Expense Tracker")
 uploaded_file = st.file_uploader("Upload Receipt", type=["jpg", "png"])
 
 if uploaded_file:
-    col1, col2 = st.columns([1, 1])
+    # Image on left (smaller), table on right (larger)
+    col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("🖼️ Uploaded Receipt")
+        st.subheader("🖼️ Receipt")
         st.image(uploaded_file, use_container_width=True)
 
-    with col2:
-        st.subheader("🔍 OCR Verification")
         if st.button("🚀 Analyze Receipt"):
             with st.spinner("Extracting text..." if "Hybrid" in ocr_method else "AI is reading..."):
                 with open("temp.jpg", "wb") as f:
@@ -94,35 +93,35 @@ if uploaded_file:
 
                 st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
 
-    # Show results in full width below the image
-    if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
-        st.divider()
-        st.subheader("📋 Extracted Data")
-        st.info("💡 Edit the table below to correct any AI errors.")
+    with col2:
+        if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
+            st.subheader("📋 Extracted Data")
 
-        # Show raw extracted text for hybrid mode (debugging)
-        if st.session_state.get('last_raw_text'):
-            with st.expander("📝 Raw OCR Text (EasyOCR)"):
-                st.text(st.session_state.last_raw_text)
+            # Show raw extracted text for hybrid mode (debugging)
+            if st.session_state.get('last_raw_text'):
+                with st.expander("📝 Raw OCR Text"):
+                    st.text(st.session_state.last_raw_text)
 
-        # Calculate height based on number of rows (35px per row + header)
-        num_rows = len(st.session_state.current_scan)
-        table_height = max(250, min(600, (num_rows + 1) * 35 + 50))
+            # Calculate height based on number of rows
+            num_rows = len(st.session_state.current_scan)
+            table_height = max(300, min(500, (num_rows + 1) * 35 + 50))
 
-        edited_results = st.data_editor(
-            st.session_state.current_scan,
-            use_container_width=True,
-            height=table_height,
-            key="ocr_editor"
-        )
+            edited_results = st.data_editor(
+                st.session_state.current_scan,
+                use_container_width=True,
+                height=table_height,
+                key="ocr_editor"
+            )
 
-        if st.button("💾 Save to History"):
-            st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
-            st.success("Data saved to Master File!")
-            del st.session_state.current_scan
-            if 'last_raw_text' in st.session_state:
-                del st.session_state.last_raw_text
-            st.rerun()
+            if st.button("💾 Save to History"):
+                st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
+                st.success("Data saved to Master File!")
+                del st.session_state.current_scan
+                if 'last_raw_text' in st.session_state:
+                    del st.session_state.last_raw_text
+                st.rerun()
+        else:
+            st.info("👆 Upload a receipt and click Analyze")
 
 # --- TIME-PERIOD ANALYSIS ---
 if not st.session_state.master_db.empty:
