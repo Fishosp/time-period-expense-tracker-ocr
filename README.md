@@ -193,19 +193,38 @@ Thai:     "สวัสดีโลก"      (no spaces, vowels wrap around cons
 
 ### Why Multilingual Models Matter
 
-**Standard English-only OCR models fail because:**
-- They don't have Thai character recognition trained
-- They may try to interpret Thai as corrupted Latin text
-- Word segmentation algorithms assume spaces exist
+Both the OCR stage and the LLM stage need proper multilingual support:
 
-**Multilingual models like qwen2.5 help because:**
-- Trained on diverse languages including Thai, Chinese, Japanese
+**OCR Stage (EasyOCR)**
+
+EasyOCR uses separate neural network models for each language. When you initialize with `['th', 'en']`:
+- Downloads Thai character recognition model (~70MB)
+- Downloads English character recognition model (~30MB)
+- Runs both models and combines results
+
+Without the Thai model, EasyOCR would:
+- Not recognize Thai characters at all
+- Output garbage or empty strings
+- Miss most of the receipt content
+
+EasyOCR supports 80+ languages. For Asian scripts:
+| Language | Script Type | EasyOCR Code |
+|----------|-------------|--------------|
+| Thai | Abugida | `th` |
+| Chinese (Simplified) | Logographic | `ch_sim` |
+| Chinese (Traditional) | Logographic | `ch_tra` |
+| Japanese | Mixed | `ja` |
+| Korean | Alphabetic | `ko` |
+
+**LLM Stage (Ollama/Gemini)**
+
+Even with perfect OCR, the LLM needs multilingual training to:
 - Understand that prices are numbers even when OCR misreads "0" as "o"
-- Can infer meaning from context when characters are ambiguous
-- Better at handling mixed-language text (Thai product names + English brands)
+- Infer meaning from context when characters are ambiguous
+- Handle mixed-language text (Thai product names + English brands)
+- Know Thai keywords for "total", "tax", "change" to filter them out
 
-### Recommended Models for Asian Languages
-
+**Recommended LLM models for Asian languages:**
 | Model | Asian Language Support | Notes |
 |-------|------------------------|-------|
 | **qwen2.5:7b** | Excellent | Alibaba model, strong CJK + Thai |
