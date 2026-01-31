@@ -74,11 +74,40 @@ def structure_with_gemini(text: str) -> pd.DataFrame:
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     prompt = _get_structuring_prompt(text)
+    logger.info(f"Calling Gemini")
     response = model.generate_content(prompt)
-    clean_json = response.text.replace('```json', '').replace('```', '').strip()
-    data = json.loads(clean_json)
+    raw_response = response.text
+    logger.info(f"Gemini raw response:\n{raw_response}")
+
+    clean_json = _extract_json_from_response(raw_response)
+
+    try:
+        data = json.loads(clean_json)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parse error: {e}")
+        raise ValueError(f"Could not parse Gemini response as JSON. Raw response:\n{raw_response[:500]}")
 
     return pd.DataFrame(data)
+
+
+def _extract_json_from_response(text: str) -> str:
+    """Extract JSON array from LLM response, handling various formats."""
+    import re
+
+    # Remove markdown code blocks
+    text = text.replace('```json', '').replace('```', '').strip()
+
+    # Try to find JSON array in the response
+    match = re.search(r'\[[\s\S]*\]', text)
+    if match:
+        return match.group(0)
+
+    # Try to find JSON object and wrap in array
+    match = re.search(r'\{[\s\S]*\}', text)
+    if match:
+        return f'[{match.group(0)}]'
+
+    return text
 
 
 def structure_with_ollama(text: str, model: str = "llama3.2") -> pd.DataFrame:
@@ -109,10 +138,18 @@ def structure_with_ollama(text: str, model: str = "llama3.2") -> pd.DataFrame:
     raw_response = result.get('response', '')
     logger.info(f"Ollama raw response:\n{raw_response}")
 
-    clean_json = raw_response.replace('```json', '').replace('```', '').strip()
-    logger.info(f"Cleaned JSON:\n{clean_json}")
+    if not raw_response.strip():
+        raise ValueError("Ollama returned empty response. Try a different model or check if Ollama is running.")
 
-    data = json.loads(clean_json)
+    clean_json = _extract_json_from_response(raw_response)
+    logger.info(f"Extracted JSON:\n{clean_json}")
+
+    try:
+        data = json.loads(clean_json)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parse error: {e}")
+        raise ValueError(f"Could not parse LLM response as JSON. Raw response:\n{raw_response[:500]}")
+
     return pd.DataFrame(data)
 
 
