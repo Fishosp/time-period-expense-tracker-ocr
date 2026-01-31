@@ -21,9 +21,16 @@ cd time-period-expense-tracker-ocr
 
 ### 2. Create and activate a virtual environment
 
+**Linux/Mac:**
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
+```
+
+**Windows (PowerShell):**
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 ```
 
 ### 3. Install dependencies
@@ -36,8 +43,14 @@ pip install -r requirements.txt
 
 Get a Gemini API key from https://aistudio.google.com/app/apikey
 
+**Linux/Mac:**
 ```bash
 cp .env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
 ```
 
 Edit `.env` and add your API key:
