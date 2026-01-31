@@ -3,7 +3,20 @@
 
 import streamlit as st
 import pandas as pd
+import requests
 from dotenv import load_dotenv
+
+
+def get_ollama_models():
+    """Fetch available models from Ollama."""
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        if response.status_code == 200:
+            models = response.json().get("models", [])
+            return [m["name"] for m in models]
+    except Exception:
+        pass
+    return ["llama3.2"]  # fallback
 
 st.set_page_config(layout="wide", page_title="Expense Tracker")
 
@@ -34,10 +47,11 @@ with st.sidebar:
     )
 
     if "Ollama" in llm_backend:
-        ollama_model = st.text_input(
+        available_models = get_ollama_models()
+        ollama_model = st.selectbox(
             "Ollama Model",
-            value="llama3.2",
-            help="Model name (e.g., llama3.2, mistral, gemma2)"
+            options=available_models,
+            help="Select from locally available models"
         )
     else:
         ollama_model = None
