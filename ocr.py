@@ -90,10 +90,10 @@ def _get_structuring_prompt(text: str) -> str:
 IMPORTANT: Include EVERY item with a price. Do NOT skip any products.
 
 RULES:
-1. Fix OCR errors in prices: 'o'/'O' → '0', 'l'/'I' → '1', 'S' → '5', 'B' → '8'
-2. Prices are numbers like 25.00, 119.00
-3. ONLY skip: totals, subtotals, tax lines, payment methods, change, promotional text
-4. Include ALL product lines - even if names look strange due to OCR errors
+1. CRITICAL: Keep item names EXACTLY as written. Do NOT translate or rewrite Thai text.
+2. Fix OCR errors in prices ONLY: 'o'/'O' → '0', 'l'/'I' → '1', 'S' → '5', 'B' → '8'
+3. Prices are numbers like 25.00, 119.00
+4. Include ALL product lines even if names look strange due to OCR errors. Exception: skip totals, subtotals, tax lines, payment methods, change, promotional text
 
 JSON format per item:
 {{"Timestamp": "YYYY-MM-DD HH:MM", "Item": "name", "Category": "Food|Beverage|Snack|Household|Other", "Price": 0.00, "Size": ""}}
@@ -137,6 +137,9 @@ def structure_with_gemini(text: str) -> pd.DataFrame:
 def _extract_json_from_response(text: str) -> str:
     """Extract JSON array from LLM response, handling various formats."""
     import re
+
+    # Remove thinking tags (Qwen 3 outputs <think>...</think>)
+    text = re.sub(r'<think>[\s\S]*?</think>', '', text)
 
     # Remove markdown code blocks
     text = text.replace('```json', '').replace('```', '').strip()
