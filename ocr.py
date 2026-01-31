@@ -24,7 +24,7 @@ def _get_paddle_ocr():
 def extract_text_paddle(image_path: str) -> str:
     """Extract raw text from image using PaddleOCR."""
     ocr = _get_paddle_ocr()
-    result = ocr.ocr(image_path, cls=True)
+    result = ocr.ocr(image_path)
 
     if not result or not result[0]:
         return ""
