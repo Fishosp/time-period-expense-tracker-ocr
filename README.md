@@ -7,7 +7,7 @@ A Streamlit app that uses EasyOCR and LLMs to extract structured data from recei
 - **Hybrid OCR** - EasyOCR for Thai/English text extraction + LLM for structuring
 - **Ollama support** - Run locally with no API keys (free, offline, private)
 - **Gemini support** - Use Google's API as an alternative
-- Editable data table to correct AI mistakes
+- **Review queue** - Accept/reject individual items before saving, edit inline, batch actions
 - Spending over time visualization
 - Category breakdown with charts
 - Transaction history
@@ -100,9 +100,12 @@ The app will open in your browser at `http://localhost:8501`
 ## Usage
 
 1. Upload a receipt image (JPG or PNG)
-2. Click "Analyze Receipt" to run OCR
-3. Review and edit the extracted data if needed
-4. Click "Save to History" to track the transaction
+2. Click "Analyze" to run OCR
+3. Review extracted items in the queue:
+   - ✅ Check/uncheck items to include or exclude
+   - ✏️ Edit individual items (name, price, category)
+   - ❌ Reject items you don't want to save
+4. Click "Accept Selected" to save to history
 5. View spending analytics in the charts below
 
 ## OCR Modes
