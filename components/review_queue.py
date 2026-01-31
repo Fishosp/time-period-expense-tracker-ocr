@@ -126,14 +126,11 @@ def _render_display_row(idx: int, item: dict, is_accepted: bool) -> None:
             st.rerun()
 
     with cols[5]:
-        if is_accepted:
-            if st.button("❌", key=f"reject_{idx}", help="Reject item"):
-                st.session_state.review_items[idx]["accepted"] = False
-                st.rerun()
-        else:
-            if st.button("↩️", key=f"undo_{idx}", help="Undo rejection"):
-                st.session_state.review_items[idx]["accepted"] = True
-                st.rerun()
+        btn_label = "❌" if is_accepted else "↩️"
+        btn_help = "Reject item" if is_accepted else "Undo rejection"
+        if st.button(btn_label, key=f"toggle_{idx}", help=btn_help):
+            st.session_state.review_items[idx]["accepted"] = not is_accepted
+            st.rerun()
 
 
 def _render_edit_form(idx: int, item: dict) -> None:
