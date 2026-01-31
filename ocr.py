@@ -27,7 +27,7 @@ def _get_easyocr_reader():
 
 
 def extract_text_easyocr(image_path: str) -> str:
-    """Extract raw text from image using EasyOCR."""
+    """Extract raw text from image using EasyOCR, preserving line structure."""
     logger.info(f"Extracting text from: {image_path}")
     reader = _get_easyocr_reader()
     result = reader.readtext(image_path)
@@ -36,12 +36,46 @@ def extract_text_easyocr(image_path: str) -> str:
         logger.warning("EasyOCR returned no results")
         return ""
 
-    lines = []
+    # Group text by vertical position to preserve table structure
+    # Each detection: (bbox, text, confidence)
+    # bbox is [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+    items = []
     for detection in result:
+        bbox = detection[0]
         text = detection[1]
         confidence = detection[2]
         if confidence > 0.3:
-            lines.append(text)
+            # Use average y position of top edge as line indicator
+            y_pos = (bbox[0][1] + bbox[1][1]) / 2
+            x_pos = bbox[0][0]  # Left edge x position
+            items.append((y_pos, x_pos, text))
+
+    if not items:
+        return ""
+
+    # Sort by y position, then x position
+    items.sort(key=lambda x: (x[0], x[1]))
+
+    # Group items that are on the same line (within threshold)
+    line_threshold = 20  # pixels
+    lines = []
+    current_line = []
+    current_y = items[0][0]
+
+    for y_pos, x_pos, text in items:
+        if abs(y_pos - current_y) < line_threshold:
+            current_line.append((x_pos, text))
+        else:
+            # Sort current line by x position and add to lines
+            current_line.sort(key=lambda x: x[0])
+            lines.append(' '.join([t[1] for t in current_line]))
+            current_line = [(x_pos, text)]
+            current_y = y_pos
+
+    # Don't forget the last line
+    if current_line:
+        current_line.sort(key=lambda x: x[0])
+        lines.append(' '.join([t[1] for t in current_line]))
 
     extracted = '\n'.join(lines)
     logger.info(f"Extracted text:\n{extracted}")
