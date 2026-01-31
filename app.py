@@ -1,5 +1,5 @@
-# 7-Eleven Receipt OCR Expense Tracker
-# Uses EasyOCR + Gemini AI to extract structured data from receipt images
+# Receipt OCR Expense Tracker
+# Uses EasyOCR + LLM to extract structured data from receipt images
 
 import streamlit as st
 import pandas as pd
@@ -145,9 +145,10 @@ if not st.session_state.master_db.empty:
     df_clean = st.session_state.master_db.copy()
     df_clean["Price"] = pd.to_numeric(df_clean["Price"], errors='coerce').fillna(0)
 
-    # Exclude total/summary rows from Thai receipts
+    # Exclude total/summary rows (Thai and English keywords)
     exclude_keywords = [
-        "ยอดสุทธิ", "ยอดรวม", "Total", "ชำระเงิน", "ทรูวอลเล็ท", "รวมทั้งสิ้น",
+        "ยอดสุทธิ", "ยอดรวม", "รวมทั้งสิ้น", "ชำระเงิน", "ทรูวอลเล็ท",
+        "Total", "Subtotal", "Tax", "VAT", "Payment", "Change", "Cash",
         "ตราปั๊มจังหวัด", "ภารกิจช้อปครบ", "รับเงินภารกิจช้อปหน้าร้าน", "สิทธิ์แลกซื้อสุดคุ้มAMB", "บริการ"
     ]
 

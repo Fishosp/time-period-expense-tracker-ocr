@@ -84,12 +84,12 @@ def extract_text_easyocr(image_path: str) -> str:
 
 def _get_structuring_prompt(text: str) -> str:
     """Generate the prompt for structuring receipt text."""
-    return f"""Extract items from this 7-Eleven receipt. Return a JSON array.
+    return f"""Extract items from this receipt. Return a JSON array.
 
 RULES:
 1. Fix common OCR errors in prices: 'o'/'O' → '0', 'l'/'I' → '1', 'S' → '5', 'B' → '8'
 2. Prices should be numbers like 25.00, 119.00, etc.
-3. Skip totals, payment methods, promotional text
+3. Skip totals, subtotals, tax, payment methods, promotional text
 4. Each product line = one item
 
 JSON format:
@@ -202,15 +202,17 @@ def run_gemini_only_ocr(image_path: str) -> pd.DataFrame:
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     img = PIL.Image.open(image_path)
-    prompt = f"""Analyze this 7-Eleven receipt. Return a JSON LIST of objects with these keys:
-"Timestamp", "Item", "Category", "Price", "Size".
+    prompt = f"""Extract items from this receipt image. Return a JSON array.
 
-Format Timestamp as YYYY-MM-DD HH:MM.
-If you can't find a date, use '{datetime.now().strftime("%Y-%m-%d")} 12:00'.
-Price should be a number (no currency symbols).
-Category should be one of: Food, Beverage, Snack, Household, Other.
+Skip totals, subtotals, tax, payment methods, promotional text.
+Each product line = one item.
 
-Return ONLY valid JSON, no markdown formatting."""
+JSON format:
+{{"Timestamp": "YYYY-MM-DD HH:MM", "Item": "name", "Category": "Food|Beverage|Snack|Household|Other", "Price": 0.00, "Size": ""}}
+
+Date if not found: {datetime.now().strftime("%Y-%m-%d")} 12:00
+
+Return ONLY valid JSON array."""
 
     response = model.generate_content([prompt, img])
     clean_json = response.text.replace('```json', '').replace('```', '').strip()
