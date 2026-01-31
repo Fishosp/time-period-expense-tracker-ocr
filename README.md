@@ -85,7 +85,42 @@ pip install -r requirements.txt
 
 4. Select your model from the dropdown in the app sidebar
 
-#### Option B: Gemini API
+#### Option B: Groq (Recommended cloud option - free, fast)
+
+Groq offers free API access with generous limits and excellent multilingual support.
+
+1. Sign up at https://console.groq.com
+
+2. Create an API key from the dashboard
+
+3. Create your `.env` file:
+
+   **Linux/Mac:**
+   ```bash
+   cp .env.example .env
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+4. Edit `.env` and add your API key:
+   ```
+   GROQ_API_KEY=gsk_your_key_here
+   ```
+
+5. Select "Groq (Free API)" in the app sidebar
+
+**Available Groq models:**
+| Model | Speed | Best for |
+|-------|-------|----------|
+| **qwen/qwen3-32b** | Fast | Recommended - excellent Thai/multilingual |
+| llama-3.3-70b-versatile | Medium | Strong general purpose |
+| llama-3.1-8b-instant | Very fast | Quick testing |
+| moonshotai/kimi-k2-instruct-0905 | Medium | Alternative multilingual |
+
+#### Option C: Gemini API
 
 Get a Gemini API key from https://aistudio.google.com/app/apikey
 
@@ -138,6 +173,7 @@ The app supports different OCR and LLM combinations (selectable in the sidebar):
 | Backend | Pros | Cons |
 |---------|------|------|
 | **Ollama** (default) | Free, offline, private | Requires local setup |
+| **Groq** | Free API, fast, great multilingual | Requires internet, API key |
 | **Gemini** | No setup, fast | API limits, requires key |
 
 Hybrid mode shows the raw extracted text in an expandable section for debugging.
