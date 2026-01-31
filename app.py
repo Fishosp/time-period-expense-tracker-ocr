@@ -25,6 +25,7 @@ from ocr import (
     run_gemini_only_ocr,
     normalize_dataframe,
 )
+from components.review_queue import init_review_state, render_review_queue
 
 load_dotenv()
 
@@ -41,14 +42,16 @@ with st.sidebar:
 
     llm_backend = st.radio(
         "LLM Backend",
-        ["Ollama (Local)", "Gemini (API)"],
+        ["Groq (Free API)", "Ollama (Local)", "Gemini (API)"],
         index=0,
-        help="Ollama runs locally (free, offline). Gemini requires API key."
+        help="Groq: free cloud API. Ollama: local, offline. Gemini: Google API."
     )
+
+    ollama_model = None
+    groq_model = None
 
     if "Ollama" in llm_backend:
         available_models = get_ollama_models()
-        # Default to qwen2.5:7b if available
         default_index = 0
         if "qwen2.5:7b" in available_models:
             default_index = available_models.index("qwen2.5:7b")
@@ -58,8 +61,19 @@ with st.sidebar:
             index=default_index,
             help="Select from locally available models"
         )
-    else:
-        ollama_model = None
+    elif "Groq" in llm_backend:
+        groq_models = [
+            "qwen/qwen3-32b",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "moonshotai/kimi-k2-instruct-0905",
+        ]
+        groq_model = st.selectbox(
+            "Groq Model",
+            options=groq_models,
+            index=0,
+            help="Qwen 3 32B recommended for multilingual/Thai"
+        )
 
     st.divider()
 
@@ -76,13 +90,23 @@ if 'master_db' not in st.session_state:
     st.session_state.master_db = pd.DataFrame(columns=["Timestamp", "Item", "Category", "Price", "Size"])
 
 # --- OCR FUNCTION ---
-def run_ocr(image_path: str, method: str, llm: str, model: str = None):
+def run_ocr(image_path: str, method: str, llm: str, ollama_model: str = None, groq_model: str = None):
     """Run OCR with selected method and return normalized DataFrame."""
     try:
-        backend = "ollama" if "Ollama" in llm else "gemini"
+        if "Ollama" in llm:
+            backend = "ollama"
+        elif "Groq" in llm:
+            backend = "groq"
+        else:
+            backend = "gemini"
 
         if "Hybrid" in method:
-            df, raw_text = run_hybrid_ocr(image_path, llm_backend=backend, ollama_model=model or "qwen2.5:7b")
+            df, raw_text = run_hybrid_ocr(
+                image_path,
+                llm_backend=backend,
+                ollama_model=ollama_model or "qwen2.5:7b",
+                groq_model=groq_model or "qwen/qwen3-32b"
+            )
             st.session_state.last_raw_text = raw_text
         else:
             df = run_gemini_only_ocr(image_path)
@@ -119,34 +143,25 @@ if uploaded_file:
                 with st.spinner("Extracting..." if "Hybrid" in ocr_method else "Reading..."):
                     with open("temp.jpg", "wb") as f:
                         f.write(uploaded_file.getbuffer())
-                    st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+                    df = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model, groq_model)
+                    if df is not None:
+                        init_review_state(df)
             st.rerun()
 
     with col2:
-        if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
-            st.subheader("📋 Extracted Data")
+        if 'review_items' in st.session_state:
+            accepted_df = render_review_queue()
 
-            # Show raw extracted text for hybrid mode (debugging)
-            if st.session_state.get('last_raw_text'):
-                with st.expander("📝 Raw OCR Text"):
-                    st.text(st.session_state.last_raw_text)
-
-            # Calculate height based on number of rows
-            num_rows = len(st.session_state.current_scan)
-            table_height = max(300, min(500, (num_rows + 1) * 35 + 50))
-
-            edited_results = st.data_editor(
-                st.session_state.current_scan,
-                width="stretch",
-                height=table_height,
-                key="ocr_editor"
-            )
-
-            if st.button("💾 Save to History"):
-                st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
-                st.success("Data saved to Master File!")
-                del st.session_state.current_scan
-                if 'last_raw_text' in st.session_state:
+            if accepted_df is not None:
+                # User clicked "Accept Selected"
+                st.session_state.master_db = pd.concat([st.session_state.master_db, accepted_df]).drop_duplicates()
+                st.success(f"Saved {len(accepted_df)} items to history!")
+                # Clear review state
+                if "review_items" in st.session_state:
+                    del st.session_state.review_items
+                if "editing_item" in st.session_state:
+                    del st.session_state.editing_item
+                if "last_raw_text" in st.session_state:
                     del st.session_state.last_raw_text
                 st.rerun()
         else:

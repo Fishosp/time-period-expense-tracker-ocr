@@ -7,7 +7,7 @@ A Streamlit app that uses EasyOCR and LLMs to extract structured data from recei
 - **Hybrid OCR** - EasyOCR for Thai/English text extraction + LLM for structuring
 - **Ollama support** - Run locally with no API keys (free, offline, private)
 - **Gemini support** - Use Google's API as an alternative
-- Editable data table to correct AI mistakes
+- **Review queue** - Accept/reject individual items before saving, edit inline, batch actions
 - Spending over time visualization
 - Category breakdown with charts
 - Transaction history
@@ -47,7 +47,19 @@ pip install -r requirements.txt
 
 #### Option A: Ollama (Recommended - free, local, offline)
 
-1. Install Ollama from https://ollama.com/download
+1. Install Ollama:
+
+   **Windows:** Download and run the installer from https://ollama.com/download
+
+   **Mac:**
+   ```bash
+   brew install ollama
+   ```
+
+   **Linux:**
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
 
 2. Pull a model:
    ```bash
@@ -63,13 +75,52 @@ pip install -r requirements.txt
    | gemma2:9b | 5.4GB | Slow | High | Alternative high accuracy |
 
 3. Start Ollama (runs on http://localhost:11434):
+
+   **Windows:** Runs automatically as a background service after installation.
+
+   **Linux/Mac:**
    ```bash
    ollama serve
    ```
 
 4. Select your model from the dropdown in the app sidebar
 
-#### Option B: Gemini API
+#### Option B: Groq (Recommended cloud option - free, fast)
+
+Groq offers free API access with generous limits and excellent multilingual support.
+
+1. Sign up at https://console.groq.com
+
+2. Create an API key from the dashboard
+
+3. Create your `.env` file:
+
+   **Linux/Mac:**
+   ```bash
+   cp .env.example .env
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+4. Edit `.env` and add your API key:
+   ```
+   GROQ_API_KEY=gsk_your_key_here
+   ```
+
+5. Select "Groq (Free API)" in the app sidebar
+
+**Available Groq models:**
+| Model | Speed | Best for |
+|-------|-------|----------|
+| **qwen/qwen3-32b** | Fast | Recommended - excellent Thai/multilingual |
+| llama-3.3-70b-versatile | Medium | Strong general purpose |
+| llama-3.1-8b-instant | Very fast | Quick testing |
+| moonshotai/kimi-k2-instruct-0905 | Medium | Alternative multilingual |
+
+#### Option C: Gemini API
 
 Get a Gemini API key from https://aistudio.google.com/app/apikey
 
@@ -100,9 +151,12 @@ The app will open in your browser at `http://localhost:8501`
 ## Usage
 
 1. Upload a receipt image (JPG or PNG)
-2. Click "Analyze Receipt" to run OCR
-3. Review and edit the extracted data if needed
-4. Click "Save to History" to track the transaction
+2. Click "Analyze" to run OCR
+3. Review extracted items in the queue:
+   - ✅ Check/uncheck items to include or exclude
+   - ✏️ Edit individual items (name, price, category)
+   - ❌ Reject items you don't want to save
+4. Click "Accept Selected" to save to history
 5. View spending analytics in the charts below
 
 ## OCR Modes
@@ -119,6 +173,7 @@ The app supports different OCR and LLM combinations (selectable in the sidebar):
 | Backend | Pros | Cons |
 |---------|------|------|
 | **Ollama** (default) | Free, offline, private | Requires local setup |
+| **Groq** | Free API, fast, great multilingual | Requires internet, API key |
 | **Gemini** | No setup, fast | API limits, requires key |
 
 Hybrid mode shows the raw extracted text in an expandable section for debugging.
