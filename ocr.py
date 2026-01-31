@@ -84,18 +84,22 @@ def extract_text_easyocr(image_path: str) -> str:
 
 def _get_structuring_prompt(text: str) -> str:
     """Generate the prompt for structuring receipt text."""
-    return f"""Analyze this 7-Eleven receipt text and return a JSON LIST of objects with these keys:
-"Timestamp", "Item", "Category", "Price", "Size".
+    return f"""Extract items from this 7-Eleven receipt. Return a JSON array.
 
-Format Timestamp as YYYY-MM-DD HH:MM.
-If you can't find a date, use '{datetime.now().strftime("%Y-%m-%d")} 12:00'.
-Price should be a number (no currency symbols).
-Category should be one of: Food, Beverage, Snack, Household, Other.
+CRITICAL RULES:
+- Extract EXACT prices as shown - DO NOT calculate, round, or modify numbers
+- Each line with a price is one item
+- Skip lines that are totals, payment methods, or promotional text
+
+JSON format for each item:
+{{"Timestamp": "YYYY-MM-DD HH:MM", "Item": "product name", "Category": "Food|Beverage|Snack|Household|Other", "Price": exact_number, "Size": "size if shown"}}
+
+If no date found, use: {datetime.now().strftime("%Y-%m-%d")} 12:00
 
 Receipt text:
 {text}
 
-Return ONLY valid JSON, no markdown formatting."""
+Return ONLY the JSON array, no explanation."""
 
 
 def structure_with_gemini(text: str) -> pd.DataFrame:
