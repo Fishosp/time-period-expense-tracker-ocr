@@ -17,7 +17,7 @@ def _get_paddle_ocr():
     """Lazy initialization of PaddleOCR to avoid slow startup."""
     global _paddle_ocr
     if _paddle_ocr is None:
-        _paddle_ocr = PaddleOCR(lang='th', use_angle_cls=True, show_log=False)
+        _paddle_ocr = PaddleOCR(lang='th', use_angle_cls=True)
     return _paddle_ocr
 
 
