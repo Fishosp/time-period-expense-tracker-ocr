@@ -94,27 +94,35 @@ if uploaded_file:
 
                 st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
 
-        if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
-            st.info("💡 Edit the table below to correct any AI errors.")
+    # Show results in full width below the image
+    if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
+        st.divider()
+        st.subheader("📋 Extracted Data")
+        st.info("💡 Edit the table below to correct any AI errors.")
 
-            # Show raw extracted text for hybrid mode (debugging)
-            if st.session_state.get('last_raw_text'):
-                with st.expander("📝 Raw OCR Text (EasyOCR)"):
-                    st.text(st.session_state.last_raw_text)
+        # Show raw extracted text for hybrid mode (debugging)
+        if st.session_state.get('last_raw_text'):
+            with st.expander("📝 Raw OCR Text (EasyOCR)"):
+                st.text(st.session_state.last_raw_text)
 
-            edited_results = st.data_editor(
-                st.session_state.current_scan,
-                use_container_width=True,
-                key="ocr_editor"
-            )
+        # Calculate height based on number of rows (35px per row + header)
+        num_rows = len(st.session_state.current_scan)
+        table_height = max(250, min(600, (num_rows + 1) * 35 + 50))
 
-            if st.button("💾 Save to History"):
-                st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
-                st.success("Data saved to Master File!")
-                del st.session_state.current_scan
-                if 'last_raw_text' in st.session_state:
-                    del st.session_state.last_raw_text
-                st.rerun()
+        edited_results = st.data_editor(
+            st.session_state.current_scan,
+            use_container_width=True,
+            height=table_height,
+            key="ocr_editor"
+        )
+
+        if st.button("💾 Save to History"):
+            st.session_state.master_db = pd.concat([st.session_state.master_db, edited_results]).drop_duplicates()
+            st.success("Data saved to Master File!")
+            del st.session_state.current_scan
+            if 'last_raw_text' in st.session_state:
+                del st.session_state.last_raw_text
+            st.rerun()
 
 # --- TIME-PERIOD ANALYSIS ---
 if not st.session_state.master_db.empty:
