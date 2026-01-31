@@ -16,7 +16,7 @@ def get_ollama_models():
             return [m["name"] for m in models]
     except Exception:
         pass
-    return ["llama3.2"]  # fallback
+    return ["qwen2.5:7b"]  # fallback
 
 st.set_page_config(layout="wide", page_title="Expense Tracker")
 
@@ -77,7 +77,7 @@ def run_ocr(image_path: str, method: str, llm: str, model: str = None):
         backend = "ollama" if "Ollama" in llm else "gemini"
 
         if "Hybrid" in method:
-            df, raw_text = run_hybrid_ocr(image_path, llm_backend=backend, ollama_model=model or "llama3.2")
+            df, raw_text = run_hybrid_ocr(image_path, llm_backend=backend, ollama_model=model or "qwen2.5:7b")
             st.session_state.last_raw_text = raw_text
         else:
             df = run_gemini_only_ocr(image_path)

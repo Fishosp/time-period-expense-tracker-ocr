@@ -153,7 +153,7 @@ def _extract_json_from_response(text: str) -> str:
     return text
 
 
-def structure_with_ollama(text: str, model: str = "llama3.2") -> pd.DataFrame:
+def structure_with_ollama(text: str, model: str = "qwen2.5:7b") -> pd.DataFrame:
     """Use Ollama to structure extracted text into a DataFrame."""
     ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
 
@@ -236,7 +236,7 @@ Return ONLY valid JSON array."""
     return pd.DataFrame(data)
 
 
-def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "llama3.2") -> tuple[pd.DataFrame, str]:
+def run_hybrid_ocr(image_path: str, llm_backend: str = "gemini", ollama_model: str = "qwen2.5:7b") -> tuple[pd.DataFrame, str]:
     """
     Hybrid approach: EasyOCR extracts text, LLM structures it.
     Returns (DataFrame, extracted_text) for debugging.
