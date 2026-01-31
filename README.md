@@ -1,10 +1,11 @@
 # time-period-expense-tracker-ocr
 
-A Streamlit app that uses Google's Gemini AI to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
+A Streamlit app that uses EasyOCR and Google's Gemini AI to extract structured data from 7-Eleven receipts. Upload a receipt image and the AI will parse items, prices, categories, and timestamps - then track your spending over time.
 
 ## Features
 
-- OCR-powered receipt scanning using Gemini AI
+- **Hybrid OCR** - EasyOCR for Thai/English text extraction + Gemini for structuring
+- **Fallback mode** - Gemini-only OCR available via sidebar toggle
 - Editable data table to correct AI mistakes
 - Spending over time visualization
 - Category breakdown with charts
@@ -38,6 +39,8 @@ python -m venv venv
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Note:** EasyOCR will download language models (~100MB for Thai + English) on first run.
 
 ### 4. Configure your API key
 
@@ -74,6 +77,17 @@ The app will open in your browser at `http://localhost:8501`
 3. Review and edit the extracted data if needed
 4. Click "Save to History" to track the transaction
 5. View spending analytics in the charts below
+
+## OCR Modes
+
+The app supports two OCR methods (selectable in the sidebar):
+
+| Mode | How it works | Best for |
+|------|--------------|----------|
+| **Hybrid** (default) | EasyOCR extracts text → Gemini structures it | Thai receipts, better accuracy |
+| **Gemini Only** | Image sent directly to Gemini | Quick testing, fallback option |
+
+Hybrid mode also shows the raw extracted text in an expandable section for debugging.
 
 ## Sample Images
 
