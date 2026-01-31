@@ -48,9 +48,14 @@ with st.sidebar:
 
     if "Ollama" in llm_backend:
         available_models = get_ollama_models()
+        # Default to qwen2.5:7b if available
+        default_index = 0
+        if "qwen2.5:7b" in available_models:
+            default_index = available_models.index("qwen2.5:7b")
         ollama_model = st.selectbox(
             "Ollama Model",
             options=available_models,
+            index=default_index,
             help="Select from locally available models"
         )
     else:
