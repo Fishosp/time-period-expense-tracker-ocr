@@ -103,16 +103,19 @@ if uploaded_file:
         with header_col:
             st.subheader("🖼️ Receipt")
         with button_col:
-            analyze_clicked = st.button("🚀 Analyze")
+            button_placeholder = st.empty()
 
         st.image(uploaded_file, width="stretch")
 
+        analyze_clicked = button_placeholder.button("🚀 Analyze")
         if analyze_clicked:
-            with st.spinner("Extracting text..." if "Hybrid" in ocr_method else "AI is reading..."):
-                with open("temp.jpg", "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-
-                st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+            button_placeholder.empty()
+            with button_placeholder:
+                with st.spinner("Extracting..." if "Hybrid" in ocr_method else "Reading..."):
+                    with open("temp.jpg", "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    st.session_state.current_scan = run_ocr("temp.jpg", ocr_method, llm_backend, ollama_model)
+            st.rerun()
 
     with col2:
         if 'current_scan' in st.session_state and st.session_state.current_scan is not None:
