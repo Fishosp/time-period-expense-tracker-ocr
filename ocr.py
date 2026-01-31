@@ -3,12 +3,16 @@
 
 import os
 import json
+import logging
 import pandas as pd
 import google.generativeai as genai
 import PIL.Image
 import requests
 from datetime import datetime
 import easyocr
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize EasyOCR once (lazy loading)
 _easyocr_reader = None
@@ -24,10 +28,12 @@ def _get_easyocr_reader():
 
 def extract_text_easyocr(image_path: str) -> str:
     """Extract raw text from image using EasyOCR."""
+    logger.info(f"Extracting text from: {image_path}")
     reader = _get_easyocr_reader()
     result = reader.readtext(image_path)
 
     if not result:
+        logger.warning("EasyOCR returned no results")
         return ""
 
     lines = []
@@ -37,7 +43,9 @@ def extract_text_easyocr(image_path: str) -> str:
         if confidence > 0.3:
             lines.append(text)
 
-    return '\n'.join(lines)
+    extracted = '\n'.join(lines)
+    logger.info(f"Extracted text:\n{extracted}")
+    return extracted
 
 
 def _get_structuring_prompt(text: str) -> str:
@@ -78,6 +86,8 @@ def structure_with_ollama(text: str, model: str = "llama3.2") -> pd.DataFrame:
     ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
 
     prompt = _get_structuring_prompt(text)
+    logger.info(f"Calling Ollama model: {model}")
+    logger.info(f"Prompt:\n{prompt}")
 
     response = requests.post(
         f'{ollama_url}/api/generate',
@@ -89,14 +99,20 @@ def structure_with_ollama(text: str, model: str = "llama3.2") -> pd.DataFrame:
         timeout=120
     )
 
+    logger.info(f"Ollama response status: {response.status_code}")
+
     if response.status_code != 200:
+        logger.error(f"Ollama error response: {response.text}")
         raise ValueError(f"Ollama error: {response.text}")
 
     result = response.json()
     raw_response = result.get('response', '')
-    clean_json = raw_response.replace('```json', '').replace('```', '').strip()
-    data = json.loads(clean_json)
+    logger.info(f"Ollama raw response:\n{raw_response}")
 
+    clean_json = raw_response.replace('```json', '').replace('```', '').strip()
+    logger.info(f"Cleaned JSON:\n{clean_json}")
+
+    data = json.loads(clean_json)
     return pd.DataFrame(data)
 
 
